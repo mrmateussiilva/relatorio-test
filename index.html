@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Kanban de Controle de Produção</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+        }
+        .kanban-board {
+            display: flex;
+            overflow-x: auto;
+            padding: 20px 0;
+            min-height: calc(100vh - 150px);
+        }
+        .kanban-column {
+            min-width: 300px;
+            background-color: #f1f3f7;
+            border-radius: 8px;
+            margin-right: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .kanban-column-header {
+            padding: 15px;
+            font-weight: bold;
+            font-size: 16px;
+            color: #fff;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .kanban-items {
+            padding: 15px;
+            min-height: 200px;
+        }
+        .kanban-item {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: move;
+            transition: transform 0.2s;
+        }
+        .kanban-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .item-type {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .type-sublimacao {
+            background-color: #e1f5fe;
+            color: #0288d1;
+        }
+        .type-totem {
+            background-color: #f3e5f5;
+            color: #8e24aa;
+        }
+        .delivery-method {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #666;
+        }
+        .location {
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .notes {
+            margin-top: 5px;
+            font-style: italic;
+            color: #f44336;
+            font-size: 13px;
+        }
+        .counter {
+            background-color: rgba(255,255,255,0.3);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 14px;
+        }
+        .add-form {
+            display: none;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .date-header {
+            background-color: #3949ab;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+        }
+        .search-container {
+            margin-bottom: 20px;
+        }
+        .highlight {
+            box-shadow: 0 0 8px 2px #ffeb3b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row my-3">
+            <div class="col">
+                <h1 class="text-center mb-4">Sistema Kanban de Controle de Produção</h1>
+                
+                <div class="date-header">
+                    <span id="current-date">24/03/2025</span>
+                    <div>
+                        <button class="btn btn-sm btn-light" id="prev-day">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button class="btn btn-sm btn-light" id="today">Hoje</button>
+                        <button class="btn btn-sm btn-light" id="next-day">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="search-container">
+                            <input type="text" class="form-control" id="search-input" placeholder="Buscar por cliente, localidade ou tipo...">
+                        </div>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <button class="btn btn-primary" id="new-item-btn">
+                            <i class="fas fa-plus"></i> Novo Item
+                        </button>
+                        <button class="btn btn-secondary" id="filter-btn">
+                            <i class="fas fa-filter"></i> Filtros
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="new-item-form" class="add-form mb-3">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="client-name" class="form-label">Nome do Cliente</label>
+                                <input type="text" class="form-control" id="client-name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="item-type" class="form-label">Tipo</label>
+                                <select class="form-select" id="item-type">
+                                    <option value="SUBLIMAÇÃO">SUBLIMAÇÃO</option>
+                                    <option value="TOTEM">TOTEM</option>
+                                    <option value="SUBLIMAÇÃO+TOTEM">SUBLIMAÇÃO+TOTEM</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="location" class="form-label">Localidade</label>
+                                <input type="text" class="form-control" id="location">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="delivery-method" class="form-label">Método de Entrega</label>
+                                <select class="form-select" id="delivery-method">
+                                    <option value="RODOVIÁRIA - VIAÇÃO PRETTI">RODOVIÁRIA - VIAÇÃO PRETTI</option>
+                                    <option value="RODOVIÁRIA - VIAÇÃO AGUIA BRANCA">RODOVIÁRIA - VIAÇÃO AGUIA BRANCA</option>
+                                    <option value="CORREIOS - SEDEX">CORREIOS - SEDEX</option>
+                                    <option value="RETIRADA">RETIRADA</option>
+                                    <option value="ENTREGA COLATINA">ENTREGA COLATINA</option>
+                                    <option value="PORTADOR">PORTADOR</option>
+                                    <option value="FLEX">FLEX</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="notes" class="form-label">Observações</label>
+                                <input type="text" class="form-control" id="notes">
+                            </div>
+                            <div class="mb-3">
+                                <label for="item-status" class="form-label">Status</label>
+                                <select class="form-select" id="item-status">
+                                    <option value="backlog">Pendente</option>
+                                    <option value="in-progress">Em Produção</option>
+                                    <option value="quality-check">Verificação de Qualidade</option>
+                                    <option value="ready">Pronto para Envio</option>
+                                    <option value="shipped">Enviado</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <button type="button" class="btn btn-secondary" id="cancel-form">Cancelar</button>
+                        <button type="button" class="btn btn-primary" id="save-item">Salvar</button>
+                    </div>
+                </div>
+                
+                <div class="kanban-board">
+                    <div class="kanban-column">
+                        <div class="kanban-column-header bg-danger">
+                            <span>Pendente</span>
+                            <span class="counter" id="backlog-count">0</span>
+                        </div>
+                        <div class="kanban-items" id="backlog" data-status="backlog">
+                            <!-- Items will be loaded here dynamically -->
+                        </div>
+                    </div>
+                    
+                    <div class="kanban-column">
+                        <div class="kanban-column-header bg-warning">
+                            <span>Em Produção</span>
+                            <span class="counter" id="in-progress-count">0</span>
+                        </div>
+                        <div class="kanban-items" id="in-progress" data-status="in-progress">
+                            <!-- Items will be loaded here dynamically -->
+                        </div>
+                    </div>
+                    
+                    <div class="kanban-column">
+                        <div class="kanban-column-header bg-info">
+                            <span>Verificação de Qualidade</span>
+                            <span class="counter" id="quality-check-count">0</span>
+                        </div>
+                        <div class="kanban-items" id="quality-check" data-status="quality-check">
+                            <!-- Items will be loaded here dynamically -->
+                        </div>
+                    </div>
+                    
+                    <div class="kanban-column">
+                        <div class="kanban-column-header bg-primary">
+                            <span>Pronto para Envio</span>
+                            <span class="counter" id="ready-count">0</span>
+                        </div>
+                        <div class="kanban-items" id="ready" data-status="ready">
+                            <!-- Items will be loaded here dynamically -->
+                        </div>
+                    </div>
+                    
+                    <div class="kanban-column">
+                        <div class="kanban-column-header bg-success">
+                            <span>Enviado</span>
+                            <span class="counter" id="shipped-count">0</span>
+                        </div>
+                        <div class="kanban-items" id="shipped" data-status="shipped">
+                            <!-- Items will be loaded here dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap & Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Initial data from your document
+    
+        // Store tasks in local storage
+        if (!localStorage.getItem('kanbanTasks')) {
+            localStorage.setItem('kanbanTasks', JSON.stringify(initialData));
+        }
+
+        // Current date handling
+        let currentDisplayDate = new Date();
+        updateDateDisplay();
+
+        function updateDateDisplay() {
+            const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
+            const formattedDate = currentDisplayDate.toLocaleDateString('pt-BR', options);
+            document.getElementById('current-date').textContent = formattedDate;
+            
+            // Filter tasks by date
+            loadTasks();
+        }
+
+        // Date navigation
+        document.getElementById('prev-day').addEventListener('click', function() {
+            currentDisplayDate.setDate(currentDisplayDate.getDate() - 1);
+            updateDateDisplay();
+        });
+
+        document.getElementById('next-day').addEventListener('click', function() {
+            currentDisplayDate.setDate(currentDisplayDate.getDate() + 1);
+            updateDateDisplay();
+        });
+
+        document.getElementById('today').addEventListener('click', function() {
+            currentDisplayDate = new Date();
+            updateDateDisplay();
+        });
+
+        // Load tasks
+        function loadTasks() {
+            const tasks = JSON.parse(localStorage.getItem('kanbanTasks')) || [];
+            const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
+            const formattedDate = currentDisplayDate.toLocaleDateString('pt-BR', options);
+            
+            // Clear all columns
+            document.querySelectorAll('.kanban-items').forEach(column => {
+                column.innerHTML = '';
+            });
+            
+            // Filter tasks by date
+            const filteredTasks = tasks.filter(task => task.date === formattedDate);
+            
+            // Add tasks to respective columns
+            filteredTasks.forEach(task => {
+                addTaskToColumn(task);
+            });
+            
+            // Update counters
+            updateCounters();
+        }
+
+        function addTaskToColumn(task) {
+            const column = document.getElementById(task.status);
+            
+            if (!column) return;
+            
+            const typeClass = task.type.includes('TOTEM') ? 
+                (task.type.includes('SUBLIMAÇÃO') ? 'type-sublimacao' : 'type-totem') : 
+                'type-sublimacao';
+            
+            const taskElement = document.createElement('div');
+            taskElement.className = 'kanban-item';
+            taskElement.setAttribute('draggable', 'true');
+            taskElement.dataset.id = task.id;
+            
+            taskElement.innerHTML = `
+                <div class="item-type ${typeClass}">${task.type}</div>
+                <div class="client-name">${task.client}</div>
+                <div class="location">${task.location}</div>
+                <div class="delivery-method"><i class="fas fa-truck"></i> ${task.deliveryMethod}</div>
+                ${task.notes ? `<div class="notes"><i class="fas fa-exclamation-circle"></i> ${task.notes}</div>` : ''}
+                <div class="mt-2 text-end">
+                    <button class="btn btn-sm btn-outline-primary edit-btn" data-id="${task.id}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${task.id}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            
+            // Add event listeners
+            taskElement.addEventListener('dragstart', handleDragStart);
+            
+            // Add edit and delete event listeners
+            taskElement.querySelector('.edit-btn').addEventListener('click', function() {
+                editTask(task.id);
+            });
+            
+            taskElement.querySelector('.delete-btn').addEventListener('click', function() {
+                deleteTask(task.id);
+            });
+            
+            column.appendChild(taskElement);
+        }
+
+        // New item form handling
+        document.getElementById('new-item-btn').addEventListener('click', function() {
+            document.getElementById('new-item-form').style.display = 'block';
+        });
+
+        document.getElementById('cancel-form').addEventListener('click', function() {
+            document.getElementById('new-item-form').style.display = 'none';
+        });
+
+        document.getElementById('save-item').addEventListener('click', function() {
+            saveTask();
+        });
+
+        // Save task
+        function saveTask(taskId = null) {
+            const clientName = document.getElementById('client-name').value;
+            const itemType = document.getElementById('item-type').value;
+            const location = document.getElementById('location').value;
+            const deliveryMethod = document.getElementById('delivery-method').value;
+            const notes = document.getElementById('notes').value;
+            const status = document.getElementById('item-status').value;
+            
+            if (!clientName) {
+                alert('Nome do cliente é obrigatório!');
+                return;
+            }
+            
+            const tasks = JSON.parse(localStorage.getItem('kanbanTasks')) || [];
+            const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
+            const formattedDate = currentDisplayDate.toLocaleDateString('pt-BR', options);
+            
+            if (taskId) {
+                // Edit existing task
+                const taskIndex = tasks.findIndex(task => task.id == taskId);
+                if (taskIndex !== -1) {
+                    tasks[taskIndex] = {
+                        ...tasks[taskIndex],
+                        client: clientName,
+                        type: itemType,
+                        location: location,
+                        deliveryMethod: deliveryMethod,
+                        notes: notes,
+                        status: status
+                    };
+                }
+            } else {
+                // Create new task
+                const newTask = {
+                    id: Date.now(),
+                    client: clientName,
+                    type: itemType,
+                    location: location,
+                    deliveryMethod: deliveryMethod,
+                    notes: notes,
+                    status: status,
+                    date: formattedDate
+                };
+                tasks.push(newTask);
+            }
+            
+            localStorage.setItem('kanbanTasks', JSON.stringify(tasks));
+            
+            // Reset form
+            document.getElementById('client-name').value = '';
+            document.getElementById('item-type').value = 'SUBLIMAÇÃO';
+            document.getElementById('location').value = '';
+            document.getElementById('delivery-method').value = 'RODOVIÁRIA - VIAÇÃO PRETTI';
+            document.getElementById('notes').value = '';
+            document.getElementById('item-status').value = 'backlog';
+            document.getElementById('new-item-form').style.display = 'none';
+            
+            // Reload tasks
+            loadTasks();
+        }
+
+        // Edit task
+        function editTask(taskId) {
+            const tasks = JSON.parse(localStorage.getItem('kanbanTasks')) || [];
+            const task = tasks.find(task => task.id == taskId);
+            
+            if (task) {
+                document.getElementById('client-name').value = task.client;
+                document.getElementById('item-type').value = task.type;
+                document.getElementById('location').value = task.location;
+                document.getElementById('delivery-method').value = task.deliveryMethod;
+                document.getElementById('notes').value = task.notes;
+                document.getElementById('item-status').value = task.status;
+                
+                document.getElementById('new-item-form').style.display = 'block';
+                
+                // Update save button to handle edit
+                const saveButton = document.getElementById('save-item');
+                saveButton.onclick = function() {
+                    saveTask(taskId);
+                };
+            }
+        }
+
+        // Delete task
+        function deleteTask(taskId) {
+            if (confirm('Tem certeza que deseja excluir este item?')) {
+                const tasks = JSON.parse(localStorage.getItem('kanbanTasks')) || [];
+                const updatedTasks = tasks.filter(task => task.id != taskId);
+                localStorage.setItem('kanbanTasks', JSON.stringify(updatedTasks));
+                loadTasks();
+            }
+        }
+
+        // Drag and drop functionality
+        function handleDragStart(e) {
+            e.dataTransfer.setData('text/plain', e.target.dataset.id);
+            e.target.classList.add('dragging');
+        }
+
+        document.querySelectorAll('.kanban-items').forEach(column => {
+            column.addEventListener('dragover', function(e) {
+                e.preventDefault();
+            });
+            
+            column.addEventListener('dragenter', function(e) {
+                e.preventDefault();
+                this.classList.add('drag-over');
+            });
+            
+            column.addEventListener('dragleave', function() {
+                this.classList.remove('drag-over');
+            });
+            
+            column.addEventListener('drop', function(e) {
+                e.preventDefault();
+                const taskId = e.dataTransfer.getData('text/plain');
+                const taskElement = document.querySelector(`.kanban-item[data-id="${taskId}"]`);
+                
+                if (taskElement) {
+                    // Update task status in localStorage
+                    const newStatus = this.dataset.status;
+                    updateTaskStatus(taskId, newStatus);
+                    
+                    // Update UI
+                    this.appendChild(taskElement);
+                    updateCounters();
+                }
+                
+                this.classList.remove('drag-over');
+                document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+            });
+        });
+
+        // Update task status
+        function updateTaskStatus(taskId, newStatus) {
+            const tasks = JSON.parse(localStorage.getItem('kanbanTasks')) || [];
+            const taskIndex = tasks.findIndex(task => task.id == taskId);
+            
+            if (taskIndex !== -1) {
+                tasks[taskIndex].status = newStatus;
+                localStorage.setItem('kanbanTasks', JSON.stringify(tasks));
+            }
+        }
+
+        // Update column counters
+        function updateCounters() {
+            document.querySelectorAll('.kanban-items').forEach(column => {
+                const status = column.id;
+                const count = column.querySelectorAll('.kanban-item').length;
+                document.getElementById(`${status}-count`).textContent = count;
+            });
+        }
+
+        // Search functionality
+        document.getElementById('search-input').addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            
+            document.querySelectorAll('.kanban-item').forEach(item => {
+                const text = item.textContent.toLowerCase();
+                
+                // Remove any existing highlights
+                item.classList.remove('highlight');
+                
+                if (searchTerm === '') {
+                    item.style.display = 'block';
+                } else if (text.includes(searchTerm)) {
+                    item.style.display = 'block';
+                    item.classList.add('highlight');
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+
+        // Load tasks on initial page load
+        loadTasks();
+    </script>
+</body>
+</html>
